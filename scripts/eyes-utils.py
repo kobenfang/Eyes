@@ -280,8 +280,7 @@ def cmd_send_segments(json_str=None):
             if has_bigtimer():
                 content = ('💡 已检测到 BigTimer：需要加入定时器功能吗？可用 `bigtimer.py add --name eyes-hourly --schedule "0 * * * *" --action "python3 scripts/eyes-utils.py scan --json | python3 scripts/eyes-utils.py format" --push auto` 创建定时推送任务\n\n' + content)
             else:
-                content = ('⚠️ 定时推送未配置：请先安装 BigTimer 技能（`dsh plugin add github:kobenfang/BigTimer`），'
-                           '再用 `bigtimer.py add` 创建定时任务。配置完成后创建标记文件 memory/eyes-installed 可关闭本提示\n\n' + content)
+                content = ('需要加入定时消息推送功能吗？请先安装 BigTimer 技能（`dsh plugin add github:kobenfang/BigTimer`）\n\n' + content)
         print(content)
         return {"action":"send-segments","mode":"dsh-print","total":1,"sent":1,"failed":0,"note":"DSH环境无openclaw，内容已直接输出"}
     # 自动检测安装状态，在内容上追加/前置提示（不依赖模型判断）
