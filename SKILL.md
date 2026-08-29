@@ -16,6 +16,10 @@ triggers:
   - 更新Eyes
   - 帮我升级
 ---
+> **🌍 环境兼容（OpenClaw / DSH 双端）**
+> - **OpenClaw**：脚本在技能目录下执行（`python3 scripts/eyes-utils.py`），数据默认 `~/.openclaw/workspace/memory/`，定时推送走 `openclaw cron` + `openclaw message send`。
+> - **DSH**：无 `openclaw` CLI，数据走 `$DSH_WORKSPACE/memory`（默认 `~/.dsh/workspace/memory`）；`send-segments` 自动降级为直接输出，cron 章节改用 DSH 调度。
+
 
 # 👁️ Eyes · 大眼看世界
 
@@ -123,13 +127,13 @@ openclaw message send --channel "$channel" --target "$target_id" --message "消�
 JSON通过 argv 传入（避免 stdin 被占用）：
 ```bash
 # 生成内容 + 发送（单行命令，避免shell转义问题）
-formatted=$(python3 skills/eyes/scripts/eyes-utils.py format --scene hourly --segments)
-python3 skills/eyes/scripts/eyes-utils.py send-segments "{\"content\": \"$formatted\", \"channel\": \"feishu\", \"target\": \"ou_98247e4c0c80df2da79f25d0b65a6d61\"}"
+formatted=$(python3 scripts/eyes-utils.py format --scene hourly --segments)
+python3 scripts/eyes-utils.py send-segments "{\"content\": \"$formatted\", \"channel\": \"feishu\", \"target\": \"ou_98247e4c0c80df2da79f25d0b65a6d61\"}"
 ```
 
 或在模型调用时直接构造 JSON（最可靠）：
 ```bash
-python3 skills/eyes/scripts/eyes-utils.py send-segments '{"content":"第一段内容\n---SEGMENT---\n第二段内容","channel":"feishu","target":"ou_xxx"}'
+python3 scripts/eyes-utils.py send-segments '{"content":"第一段内容\n---SEGMENT---\n第二段内容","channel":"feishu","target":"ou_xxx"}'
 ```
 
 ### 完整推送流程
@@ -146,7 +150,7 @@ python3 skills/eyes/scripts/eyes-utils.py send-segments '{"content":"第一段�
 4. **【强制规则】**：必须调用 `eyes-utils.py send-segments` 发送内容，**禁止**手动调用 `openclaw message send`。`send-segments` 命令内置自动解析 `---SEGMENT---` 标记、分段发送、失败重试（3次），模型只需生成内容+调命令。具体调用方式：
    ```bash
    # JSON通过argv传入（最可靠）
-   python3 skills/eyes/scripts/eyes-utils.py send-segments '{"content":"完整内容（含---SEGMENT---分隔）","channel":"feishu","target":"ou_98247e4c0c80df2da79f25d0b65a6d61"}'
+   python3 scripts/eyes-utils.py send-segments '{"content":"完整内容（含---SEGMENT---分隔）","channel":"feishu","target":"ou_98247e4c0c80df2da79f25d0b65a6d61"}'
    ```
 5. **【发送校验】**：`send-segments` 命令本身内置重试机制（3次/段），调用完成后检查返回的 `sent` 字段是否等于 `total`。若发送失败，模型不得直接回复确认，必须上报错误。
 6. 最终回复只允许输出一句话确认（如 ✅ 已发送），**禁止**将完整内容作为会话回复输出。
@@ -158,8 +162,8 @@ python3 skills/eyes/scripts/eyes-utils.py send-segments '{"content":"第一段�
 ## 用户手动触发
 
 用户说出触发词（今日热点/大眼看世界/全球热点等）时，在当前对话中执行：
-1. `python3 skills/eyes/scripts/eyes-utils.py clean` 获取已有事件列表
-2. `python3 skills/eyes/scripts/eyes-utils.py templates --scene [时段]` 获取搜索模板
+1. `python3 scripts/eyes-utils.py clean` 获取已有事件列表
+2. `python3 scripts/eyes-utils.py templates --scene [时段]` 获取搜索模板
 3. 按模板搜索(2次)
 4. `eyes-utils.py dedup` 去重 → `classify` 分级 → `impact` 影响分析
 5. 模型修正分级 + 填充分析
@@ -173,9 +177,9 @@ python3 skills/eyes/scripts/eyes-utils.py send-segments '{"content":"第一段�
 ## 用户升级
 
 用户说出「升级Eyes/更新Eyes/帮我升级」时，在当前对话中执行：
-1. 执行 `clawhub update eyes`（不带 `--no-input`，用户可在对话中看到确认提示）
+1. 执行 `clawhub update eyes`（不带 `--no-input`，用户可在对话中看到确认提示；仅 OpenClaw 环境，DSH 环境用 `dsh plugin update`）
 2. 若提示已是最新版 → 回复「✅ Eyes 已是最新版本」
-3. 若执行更新成功（输出含 "updating" 或版本变化）→ 读取 `skills/eyes/references/cron-install-shell.sh`，提取三条 cron 的 timeout 值，与 `openclaw cron list` 查到的当前值比对，如有差异则执行 `openclaw cron edit <job-id> --timeout-seconds <value>` 逐一更新（cron message 无需更新，行为由SKILL.md驱动）
+3. 若执行更新成功（输出含 "updating" 或版本变化）→ 读取 `references/cron-install-shell.sh`，提取三条 cron 的 timeout 值，与 `openclaw cron list` 查到的当前值比对，如有差异则执行 `openclaw cron edit <job-id> --timeout-seconds <value>` 逐一更新（cron message 无需更新，行为由SKILL.md驱动）
 4. 回复确认：如「✅ Eyes 已升级到 x.x.x，cron 已同步」
 
 ## 定时器配置
@@ -189,7 +193,7 @@ python3 skills/eyes/scripts/eyes-utils.py send-segments '{"content":"第一段�
 ## 工作流程
 
 ### 通用前置（每次触发先执行）
-1. `python3 skills/eyes/scripts/eyes-utils.py clean` 清理已发送事件
+1. `python3 scripts/eyes-utils.py clean` 清理已发送事件
 2. 交易日检查: 非交易日跳过A股分析
 3. 版本检查: 读取origin.json检查更新
 

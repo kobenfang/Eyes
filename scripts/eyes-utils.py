@@ -8,8 +8,13 @@
 import json, os, re, sys, time, shutil
 from datetime import datetime, timezone, timedelta
 CN_TZ=timezone(timedelta(hours=8))
-OC=shutil.which("openclaw")or"/Users/guoxia/.npm-global/bin/openclaw"
-SENT_PATH=os.path.expanduser("~/.openclaw/workspace/memory/eyes-sent-events.md")
+OC=shutil.which("openclaw")or""
+def _ws():
+ for v in ("DSH_WORKSPACE","OPENCLAW_WORKSPACE"):
+  if os.environ.get(v): return os.environ[v]
+ return os.path.expanduser("~/.openclaw/workspace")
+_WM=os.path.join(_ws(),"memory")
+SENT_PATH=os.path.join(_WM,"eyes-sent-events.md")
 MAX_EV=20; CLEAN_H=48
 
 def read_events():
@@ -249,15 +254,19 @@ def cmd_send_segments(json_str=None):
     # 若channel/target未提供则从bigA共享配置读取
     if not channel or not target:
         try:
-            with open(os.path.expanduser('~/.openclaw/workspace/memory/biga-send-config.json')) as f:
+            with open(os.path.join(_WM,'biga-send-config.json')) as f:
                 cfg=json.load(f)
             if not channel: channel=cfg.get('channel')
             if not target: target=cfg.get('target')
         except: pass
     if not content or not target or not channel:
         return {"error":"缺少发送参数(content/channel/target)"}
+    if not openclaw_bin:
+        # DSH 环境：无 openclaw CLI，直接输出内容作为对话回复
+        print(content)
+        return {"action":"send-segments","mode":"dsh-print","total":1,"sent":1,"failed":0,"note":"DSH环境无openclaw，内容已直接输出"}
     # 自动检测安装状态，在内容上追加/前置提示（不依赖模型判断）
-    wrk = os.path.expanduser('~/.openclaw/workspace/memory')
+    wrk = _WM
     if not os.path.exists(wrk + '/eyes-installed'):
         content = '⚠️ Eyes 定时器未配置，回复「帮我安装」设置每日热点推送\n\n' + content
     if not os.path.exists(wrk + '/biga-installed'):
