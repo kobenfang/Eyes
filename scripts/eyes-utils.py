@@ -266,6 +266,10 @@ def cmd_send_segments(json_str=None):
         return {"error":"缺少发送参数(content/channel/target)"}
     if not openclaw_bin:
         # DSH 环境：无 openclaw CLI，直接输出内容作为对话回复
+        wrk = _WM
+        if not os.path.exists(wrk + '/eyes-installed'):
+            content = ('⚠️ 定时推送未配置：请先安装 BigTimer 技能（`dsh plugin add github:kobenfang/BigTimer`），'
+                       '再用 `bigtimer.py add` 创建定时任务。配置完成后创建标记文件 memory/eyes-installed 可关闭本提示\n\n' + content)
         print(content)
         return {"action":"send-segments","mode":"dsh-print","total":1,"sent":1,"failed":0,"note":"DSH环境无openclaw，内容已直接输出"}
     # 自动检测安装状态，在内容上追加/前置提示（不依赖模型判断）
